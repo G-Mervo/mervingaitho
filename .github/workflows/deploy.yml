@@ -1,0 +1,57 @@
+# Deploying to DO
+name: Build & Deploy
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build React app
+        run: npm run build
+
+      - name: Upload to Server Digital Ocean
+        uses: appleboy/scp-action@v0.1.4 # This is the scp action
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          key: ${{ secrets.SSH_KEY }}
+          username: ${{ secrets.SSH_USERNAME }}
+          source: "dist" # Path to the directory you want to copy
+          target: "/var/www/mervingaitho.com/test" # Path to the directory you want to copy to
+
+      - name: Deploy to DigitalOcean
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          key: ${{ secrets.SSH_KEY }}
+          username: ${{ secrets.SSH_USERNAME }}
+          script: |
+            if [ ! -d "test" ]; then
+              mkdir /var/www/mervingaitho.com/test #create folder you want to deploy to in the live server
+            fi
+            cd /var/www/mervingaitho.com/test #enter into the folder
+            rm -rf personal-website # Clear the deployment directory
+            git clone git@github.com:G-Mervo/personal-website.git #clone the repository into test
+            cd personal-website # Change directory to the app directory
+            npm install # Install the dependencies
+            #npm run build # Build the app in production mode
+            #cp -r dist/* . # Copy the built files to the deployment directory
+            cp -r ../dist/*  ../../html
+
+            # Copy built files to DigitalOcean server 
+            # scp -r $GITHUB_WORKSPACE/dist/* ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/var/www/mervingaitho.com/test/
+
+            echo 'Deployment successful to digital ocean' #Message to be displayed when deployment is successful
